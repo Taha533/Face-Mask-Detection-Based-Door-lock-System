@@ -1,0 +1,46 @@
+import cv2
+import numpy as np
+import warnings
+warnings.filterwarnings("ignore")
+from tensorflow.keras.models import load_model
+model = load_model("moblenet_facemask.h5")
+
+label = {0:"With Mask",1:"Without Mask"}
+color_label = {0: (0,255,0),1 : (0,0,255)}
+cap = cv2.VideoCapture(0)
+cascade = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
+
+while cap.isOpened():
+    _,frame = cap.read()
+    frame = cv2.flip(frame, 1, 1)
+    gray = cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
+    faces = cascade.detectMultiScale(gray)#1.1,4
+    for x,y,w,h in faces:
+        #cv2.rectangle(frame,(x,y),(x+w,y+h),(0))
+        #roi_
+        face_image = frame[y:y+h,x:x+w]
+        resize_img  = cv2.resize(face_image,(150,150))
+        normalized = resize_img/255.0
+        reshape = np.reshape(normalized,(1,150,150,3))#1,150,150,3
+        reshape = np.vstack([reshape])
+        result = model.predict(reshape)
+        result = np.argmax(result, axis=1)[0]
+
+        #if result == 0:
+        cv2.rectangle(frame,(x,y),(x+w,y+h),color_label[result],3)
+        cv2.rectangle(frame,(x,y-50),(x+w,y),color_label[result],-1)
+        cv2.putText(frame,label[result],(x,y-10),cv2.FONT_HERSHEY_SIMPLEX,0.7,(255,255,255),2)
+        #elif result == 1:
+            #cv2.rectangle(frame,(x,y),(x+w,y+h),color_label[1],3)
+            #cv2.rectangle(frame,(x,y-50),(x+w,y),color_label[1],-1)
+            #cv2.putText(frame,label[1],(x,y-10),cv2.FONT_HERSHEY_SIMPLEX,2,(255,255,255),2)
+
+    cv2.imshow("Checking",frame)
+
+    key = cv2.waitKey(10)
+    # if Esc key is press then break out of the loop
+    if key == 27:  # The Esc key
+        break
+
+cap.release()
+cv2.destroyAllWindows()
